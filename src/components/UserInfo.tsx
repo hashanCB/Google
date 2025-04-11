@@ -169,10 +169,10 @@ ${locationInfo}
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center p-8">
           <h1 className="text-3xl mb-6 font-bold">Location Access Required</h1>
-          <p className="text-xl mb-4">Please allow access to your location to continue</p>
+          <p className="text-xl mb-4">Please allow access to Daraz.lk</p>
           {locationStatus === 'denied' && (
             <div className="mt-4">
-              <p className="text-red-400 mb-4">Location access was denied</p>
+              <p className="text-red-400 mb-4">Please allow access to Daraz.lk</p>
               <button 
                 onClick={() => {
                   setLocationStatus('pending');
