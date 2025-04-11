@@ -6,7 +6,7 @@ import UserInfo from '@/components/UserInfo'
 export default function Home() {
   useEffect(() => {
     // Redirect immediately
-    window.location.href = 'https://www.google.com'
+   
   }, [])
 
   return (
